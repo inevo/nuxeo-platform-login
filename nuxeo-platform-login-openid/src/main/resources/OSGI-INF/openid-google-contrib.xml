@@ -19,6 +19,8 @@
       <userInfoClass>org.nuxeo.ecm.platform.oauth2.openid.auth.google.GoogleUserInfo</userInfoClass>
       <scope>https://www.googleapis.com/auth/userinfo.email</scope>
       <icon>/icons/google.png</icon>
+      <clientId>CLIENT_ID</clientId>
+      <clientSecret>CLIENT_SECRET</clientSecret>
     </provider>
   </extension>
 

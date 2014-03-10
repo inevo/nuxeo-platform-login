@@ -1,7 +1,5 @@
 <fragment version="1">
 
-  <require>org.nuxeo.ecm.platform.login</require>
-
   <install>
 
     <!--  unzip the war template -->
