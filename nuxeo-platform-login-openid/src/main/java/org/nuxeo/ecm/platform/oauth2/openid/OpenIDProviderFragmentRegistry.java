@@ -124,14 +124,6 @@ public class OpenIDProviderFragmentRegistry extends
             dst.userResolverClass = src.userResolverClass;
         }
 
-        dst.accessTokenKey = src.accessTokenKey;
-
-        dst.userInfoClass = src.userInfoClass;
-
-        dst.redirectUriResolver = src.redirectUriResolver;
-
-        dst.userResolverClass = src.userResolverClass;
-
         dst.enabled = src.enabled;
     }
 

@@ -91,8 +91,8 @@ public class LinkedInUserInfo extends GenericJson implements OpenIDUserInfo {
     @Key("locale")
     protected String locale;
 
-    @Key("updated_time")
-    protected Date updatedTime;
+    @Key("updated_at")
+    protected Date updatedAt;
 
     @Override
     public String getSubject() {
@@ -188,7 +188,7 @@ public class LinkedInUserInfo extends GenericJson implements OpenIDUserInfo {
     }
 
     @Override
-    public Date getUpdatedTime() {
-        return updatedTime;
+    public Date getUpdatedAt() {
+        return updatedAt;
     }
 }

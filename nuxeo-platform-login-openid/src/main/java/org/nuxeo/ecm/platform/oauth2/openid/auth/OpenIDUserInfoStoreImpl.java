@@ -81,7 +81,7 @@ public class OpenIDUserInfoStoreImpl implements OpenIDUserInfoStore {
             data.put("locale", userInfo.getLocale());
             data.put("phone_number", userInfo.getPhoneNumber());
             data.put("address", userInfo.getAddress());
-            data.put("updated_time", userInfo.getUpdatedTime());
+            data.put("updated_at", userInfo.getUpdatedAt());
 
             session.createEntry(data);
 

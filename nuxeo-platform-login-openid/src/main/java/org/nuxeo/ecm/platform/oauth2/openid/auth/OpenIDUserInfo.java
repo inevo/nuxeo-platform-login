@@ -81,6 +81,6 @@ public interface OpenIDUserInfo {
     String getAddress();
 
     /** @return Time the End-User's information was last updated. */
-    Date getUpdatedTime();
+    Date getUpdatedAt();
 
 }

@@ -27,6 +27,6 @@
   <xs:element name="locale" type="xs:string"/>
   <xs:element name="phone_number" type="xs:string"/>
   <xs:element name="address" type="xs:string"/>
-  <xs:element name="updated_time" type="xs:date"/>
+  <xs:element name="updated_at" type="xs:date"/>
 
 </xs:schema>

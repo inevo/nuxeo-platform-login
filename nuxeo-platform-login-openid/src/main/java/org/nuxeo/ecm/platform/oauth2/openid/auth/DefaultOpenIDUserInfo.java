@@ -20,7 +20,6 @@ package org.nuxeo.ecm.platform.oauth2.openid.auth;
 
 import java.util.Date;
 import com.google.api.client.json.GenericJson;
-import com.google.api.client.util.DateTime;
 import com.google.api.client.util.Key;
 
 public class DefaultOpenIDUserInfo extends GenericJson implements OpenIDUserInfo {
@@ -79,8 +78,8 @@ public class DefaultOpenIDUserInfo extends GenericJson implements OpenIDUserInfo
     @Key("address")
     protected String address;
 
-    @Key("updated_time")
-    protected String updatedTime;
+    @Key("updated_at")
+    protected Date updatedAt;
 
     @Override
     public String getSubject() {
@@ -173,15 +172,8 @@ public class DefaultOpenIDUserInfo extends GenericJson implements OpenIDUserInfo
     }
 
     @Override
-    public Date getUpdatedTime() {
-        Date date;
-        try {
-            DateTime dateTime = DateTime.parseRfc3339(updatedTime);
-            date = new Date(dateTime.getValue());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        return date;
+    public Date getUpdatedAt() {
+        return updatedAt;
     }
 
 }
