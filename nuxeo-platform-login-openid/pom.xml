@@ -12,6 +12,10 @@
   <name>OpenId / OAuth 2 authentication plugin for Nuxeo EP</name>
   <description>Nuxeo Enterprise Platform: OpenID</description>
 
+  <properties>
+    <google.client.version>1.19.0</google.client.version>
+  </properties>
+
   <dependencies>
     <!-- <dependency> -->
     <!-- <groupId>org.nuxeo.ecm.platform</groupId> -->
