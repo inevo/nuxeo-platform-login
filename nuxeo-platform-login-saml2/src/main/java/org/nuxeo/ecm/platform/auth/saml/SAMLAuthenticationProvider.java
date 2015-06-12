@@ -38,13 +38,17 @@ import org.nuxeo.ecm.platform.ui.web.auth.NXAuthConstants;
 import org.nuxeo.ecm.platform.ui.web.auth.interfaces.NuxeoAuthenticationPlugin;
 import org.nuxeo.ecm.platform.ui.web.auth.interfaces.NuxeoAuthenticationPluginLogoutExtension;
 import org.nuxeo.ecm.platform.ui.web.auth.service.LoginProviderLinkComputer;
+import org.nuxeo.ecm.platform.ui.web.auth.service.PluggableAuthenticationService;
 import org.nuxeo.runtime.api.Framework;
 import org.opensaml.DefaultBootstrap;
 import org.opensaml.common.SAMLException;
 import org.opensaml.common.SAMLObject;
+import org.opensaml.common.SAMLVersion;
 import org.opensaml.common.binding.BasicSAMLMessageContext;
 import org.opensaml.common.binding.SAMLMessageContext;
 import org.opensaml.common.xml.SAMLConstants;
+import org.opensaml.saml2.common.Extensions;
+import org.opensaml.saml2.common.impl.ExtensionsUnmarshaller;
 import org.opensaml.saml2.core.AuthnRequest;
 import org.opensaml.saml2.core.LogoutRequest;
 import org.opensaml.saml2.core.LogoutResponse;
@@ -74,6 +78,7 @@ import org.opensaml.xml.encryption.InlineEncryptedKeyResolver;
 import org.opensaml.xml.encryption.SimpleRetrievalMethodEncryptedKeyResolver;
 import org.opensaml.xml.io.Marshaller;
 import org.opensaml.xml.io.MarshallingException;
+import org.opensaml.xml.io.UnmarshallingException;
 import org.opensaml.xml.parse.BasicParserPool;
 import org.opensaml.xml.security.credential.Credential;
 import org.opensaml.xml.security.keyinfo.KeyInfoCredentialResolver;
@@ -82,17 +87,25 @@ import org.opensaml.xml.signature.SignatureTrustEngine;
 import org.opensaml.xml.signature.impl.ExplicitKeySignatureTrustEngine;
 import org.opensaml.xml.util.Pair;
 import org.opensaml.xml.util.XMLHelper;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -311,6 +324,62 @@ public class SAMLAuthenticationProvider implements NuxeoAuthenticationPlugin, Lo
         return getSSOUrl(request, null);
     }
 
+    public static Map<String, String> getSSOPostParams(HttpServletRequest request) throws Exception {
+        PluggableAuthenticationService auth = (PluggableAuthenticationService) Framework.getRuntime().getComponent(
+                PluggableAuthenticationService.NAME);
+        SAMLAuthenticationProvider saml = null;
+        for (NuxeoAuthenticationPlugin plugin : auth.getPluginChain()) {
+            if (plugin.getClass().isAssignableFrom(SAMLAuthenticationProvider.class)) {
+                saml = (SAMLAuthenticationProvider) plugin;
+                break;
+            }
+        }
+
+        if (saml == null) {
+            return Collections.emptyMap();
+        }
+
+        WebSSOProfile sso = (WebSSOProfile) saml.profiles.get(WebSSOProfile.PROFILE_URI);
+
+        // Create and populate the context
+        SAMLMessageContext context = new BasicSAMLMessageContext();
+        saml.populateLocalContext(context);
+
+        // Build Uri
+        HTTPPostBinding binding = (HTTPPostBinding) saml.getBinding(SAMLConstants.SAML2_POST_BINDING_URI);
+
+        AuthnRequest authnRequest = sso.buildAuthRequest(request);
+        authnRequest.setDestination(sso.getEndpoint().getLocation());
+        authnRequest.setProtocolBinding(SAMLConstants.SAML2_POST_BINDING_URI);
+        authnRequest.setVersion(SAMLVersion.VERSION_20);
+
+
+        String extensions = "<saml2p:Extensions xmlns:saml2p=\"urn:oasis:names:tc:SAML:2.0:protocol\">" +
+                "<fa:RequestedAttributes xmlns:fa=\"http://autenticacao.cartaodecidadao.pt/atributos\">" +
+                "<fa:RequestedAttribute Name=\"http://interop.gov.pt/MDC/Cidadao/NIC\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" isRequired=\"True\" />" +
+                "<fa:RequestedAttribute Name=\"http://interop.gov.pt/MDC/Cidadao/NomeProprio\" NameFormat=\"urn:oasis:names:tc:SAML:2.0:attrname-format:uri\" isRequired=\"False\" />" +
+                "</fa:RequestedAttributes>" +
+                "</saml2p:Extensions>";
+        try {
+            // Parse as DOM Element
+            DocumentBuilderFactory b = DocumentBuilderFactory.newInstance();
+            b.setNamespaceAware(true);
+            DocumentBuilder db = b.newDocumentBuilder();
+            Document doc = db.parse(new InputSource(new StringReader(extensions)));
+            Element el = doc.getDocumentElement();
+            authnRequest.setExtensions((Extensions) new ExtensionsUnmarshaller().unmarshall(el));
+
+        } catch (ParserConfigurationException | SAXException | IOException e) {
+            throw new UnmarshallingException(e);
+        }
+
+
+        context.setOutboundSAMLMessage(authnRequest);
+        Map<String, String> params = binding.getPostParams(context, sso.getEndpoint());
+        params.put("action",  sso.getEndpoint().getLocation());
+        return params;
+    }
+
     @Override
     public Boolean handleLoginPrompt(HttpServletRequest request, HttpServletResponse response, String baseURL) {
 
@@ -454,7 +523,11 @@ public class SAMLAuthenticationProvider implements NuxeoAuthenticationPlugin, Lo
         return profiles.get(profileId);
     }
 
-    protected SAMLBinding getBinding(String bindingURI) {
+    public AbstractSAMLProfile getProfile(String profileUri) {
+        return profiles.get(profileUri);
+    }
+
+    public SAMLBinding getBinding(String bindingURI) {
         for (SAMLBinding binding : bindings) {
             if (binding.getBindingURI().equals(bindingURI)) {
                 return binding;
@@ -472,7 +545,7 @@ public class SAMLAuthenticationProvider implements NuxeoAuthenticationPlugin, Lo
         return null;
     }
 
-    private void populateLocalContext(SAMLMessageContext context) {
+    public void populateLocalContext(SAMLMessageContext context) {
         // Set local info
         context.setLocalEntityId(SAMLConfiguration.getEntityId());
         context.setLocalEntityRole(SPSSODescriptor.DEFAULT_ELEMENT_NAME);
